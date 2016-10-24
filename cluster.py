@@ -2,7 +2,7 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
-import sys, getopt
+import sys, getopt, os
 
 def kmeanCluster(initial_centroids, points):
     if type(initial_centroids) == np.ndarray:
@@ -57,7 +57,8 @@ def kmeanCluster(initial_centroids, points):
         return new_centroid
         
     final_clusters = [None] #Funny work-around using list making recursive step references to this local variable instead of copying it
-    
+    no_iterations = [0]
+
     def cluster(initial_centroids, points):
         clustered_indexes, clustered_records = [], []
         for point in points:
@@ -85,8 +86,10 @@ def kmeanCluster(initial_centroids, points):
         #Recursive Step
         if(sum_euclidean(initial_centroids, new_initial_centroids) == 0):
             final_clusters[0] = clusters
+            print "number of iterations : ", no_iterations[0]
             return new_initial_centroids
         else: 
+            no_iterations[0] += 1
             return cluster(new_initial_centroids, points)        
     
     return cluster(initial_centroids, points), final_clusters[0]
@@ -94,15 +97,38 @@ def kmeanCluster(initial_centroids, points):
 args = sys.argv
 
 data_points = np.array(pd.DataFrame.from_csv(args[1], index_col=None, header=None))
-output = kmeanCluster(data_points[:3], data_points)
+
+stdin_centroids = raw_input("Enter indexes of initial centroids (space separated) : ")
+centroid_indexes = stdin_centroids.split(" ")
+
+input_centroids = []
+for centroid_index in centroid_indexes:
+    input_centroids.append(data_points[int(centroid_index)])
+
+output = kmeanCluster(input_centroids, data_points)
 
 result = output[1][:]
 
+
+#File Operations
+
+if not os.path.exists("clustering_output"):
+    os.makedirs("clustering_output")
+
 for cluster_index, cluster in enumerate(result):
     df_result = pd.DataFrame(cluster)
-    df_result.to_csv("output_cluster_%s.csv" % cluster_index, index=False, header=None)
+    df_result.to_csv("clustering_output/output_cluster_%s.csv" % cluster_index, index=False, header=None)
+
+
+plot_markers = ['o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'h', 'H', 'D', 'd']
 
 if (result[0].shape[1] == 2): #Check Two Dimensions
     for cluster_index, cluster in enumerate(result):
-        plt.scatter(cluster[:, 0], cluster[:, 1], color='blue')
-        plt.savefig("output_cluster_fig%s.png" % cluster_index)
+        plt.scatter(cluster[:, 0], cluster[:, 1], color=np.random.rand(3,1), marker=plot_markers[int(np.random.random()*len(plot_markers))])
+
+    plt.savefig("clustering_output/output_cluster_fig.png")
+else:
+    try:
+        os.remove("clustering_output/output_cluster_fig.png")
+    except OSError:
+        pass
